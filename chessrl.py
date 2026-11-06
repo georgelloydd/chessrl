@@ -197,4 +197,3 @@ class Chess(): # chess class
 Game = Chess()
 Game.visionBoard()
 Game.printBoard(Game.whiteVision)
-# testing commit
