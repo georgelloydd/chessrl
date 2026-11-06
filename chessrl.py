@@ -197,3 +197,4 @@ class Chess(): # chess class
 Game = Chess()
 Game.visionBoard()
 Game.printBoard(Game.whiteVision)
+print("test")
