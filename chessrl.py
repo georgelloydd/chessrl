@@ -26,7 +26,8 @@ class Chess(): # chess class
         self.mainBoard = 999999999999999999999999993456754399992222222299990000000099990000000099990000000099990000000099992222222299993457654399999999999999999999999999 # standard game of chess
         self.whiteBoard = 999999999999999999999999991111111199991111111199990000000099990000000099990000000099990000000099992222222299993457654399999999999999999999999999
         self.blackBoard = 999999999999999999999999993456754399992222222299990000000099990000000099990000000099990000000099991111111199991111111199999999999999999999999999
-        self.madeTest = False
+        self.newEnPassant = 0
+        self.madeTest = False 
         # each player's pieces are mapped on their own bitboard, so the legal moves can understand, without multiple functions, if a piece is takeable or not.
     def translateToIndex(self, square): # converts traditional chess board squares; A1, B1, etc. to the correct index on the bitboard
         self._letterIndex = "ABCDEFGH".index(square[0])
@@ -55,6 +56,13 @@ class Chess(): # chess class
         self.mainBoard = self.updateBoard(self.mainBoard, prev, new)
         self.whiteBoard = self.updateBoard(self.whiteBoard, prev, new)
         self.blackBoard = self.updateBoard(self.blackBoard, prev, new)
+        if str(self.mainBoard)[self.translateToIndex(new)] == "2":
+            if prev[1] == "2" and new[1] == "4":
+                self.newEnPassant = self.translateToIndex(new) - 12
+            elif prev[1] == "7" and new[1] == "5":
+                self.newEnPassant = self.translateToIndex(new) + 12
+        self.swapPlayer()
+            
     def testMove(self, prev, new):
         self.madeTest = True
         self.mainBoardTest = self.updateBoard(self.mainBoard, prev, new)
@@ -136,10 +144,10 @@ class Chess(): # chess class
             for vector in captureSet:
                 if str(self.mainBoard)[pieceIndex + vector] != "9":
                     if self.currentPlayer:
-                        if str(self.whiteBoard)[pieceIndex + vector] not in ["0","1"]:
+                        if str(self.whiteBoard)[pieceIndex + vector] not in ["0","1"] or pieceIndex + vector == self.enPassant:
                             self.moveSet.append(vector)
                     else:
-                        if str(self.blackBoard)[pieceIndex + vector] not in ["0","1"]:
+                        if str(self.blackBoard)[pieceIndex + vector] not in ["0","1"] or pieceIndex + vector == self.enPassant:
                             self.moveSet.append(vector)
         removeList = []
         for move in self.moveSet:
@@ -216,10 +224,7 @@ class Chess(): # chess class
                 vectorSet = pieceVectors["blackPawnCapture"]
             for vector in vectorSet:
                 if str(board)[location + vector] != "9":
-                    if self.currentPlayer:
-                        self.captureSet.append(vector)
-                    else:
-                        self.captureSet.append(vector)
+                    self.captureSet.append(vector)
         return self.captureSet
     def visionBoard(self): # runs through each element in the white and black bitboards, then creates a vision board, used to show protected pieces, and unprotected squares, etc. updates every time it is called.
         startvalue = self.currentPlayer
@@ -276,8 +281,9 @@ class Chess(): # chess class
                 self.blackCheckedTest = True
     def tick(self):
         self.enPassant = self.newEnPassant
-        self.newEnPassant = []
+        self.newEnPassant = 0
     def swapPlayer(self):
         self.currentPlayer = not self.currentPlayer
         self.tick()
+
 Game = Chess()
