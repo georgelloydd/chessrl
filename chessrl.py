@@ -274,7 +274,10 @@ class Chess(): # chess class
             index = str(self.whiteBoardTest).index("7")
             if str(self.whiteVisionTest)[index] != "0":
                 self.blackCheckedTest = True
-
-
-
+    def tick(self):
+        self.enPassant = self.newEnPassant
+        self.newEnPassant = []
+    def swapPlayer(self):
+        self.currentPlayer = not self.currentPlayer
+        self.tick()
 Game = Chess()
