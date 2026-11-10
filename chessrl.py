@@ -23,10 +23,18 @@ pieces = {0:"blank", 1:"self", 2:"pawn", 3:"rook", 4:"knight", 5:"bishop", 6:"qu
 class Chess(): # chess class
     def __init__(self):
         self.currentPlayer = True # true for white, false for black.
-        self.mainBoard = 999999999999999999999999993456754399992222222299990000000099990000000099990000000099990000000099992222222299993457654399999999999999999999999999 # standard game of chess
-        self.whiteBoard = 999999999999999999999999991111111199991111111199990000000099990000000099990000000099990000000099992222222299993457654399999999999999999999999999
+        self.mainBoard = 999999999999999999999999993456754399992222222299990000000099990000000099990000000099990000000099992222222299993456754399999999999999999999999999 # standard game of chess
+        self.whiteBoard = 999999999999999999999999991111111199991111111199990000000099990000000099990000000099990000000099992222222299993456754399999999999999999999999999
         self.blackBoard = 999999999999999999999999993456754399992222222299990000000099990000000099990000000099990000000099991111111199991111111199999999999999999999999999
         self.newEnPassant = 0
+        self.blackCastleAny = True
+        self.blackCastleLeft = True
+        self.blackCastleRight = True
+        self.whiteCastleAny = True
+        self.whiteCastleLeft = True
+        self.whiteCastleRight = True
+        self.whiteChecked = False
+        self.blackChecked = False
         self.madeTest = False 
         # each player's pieces are mapped on their own bitboard, so the legal moves can understand, without multiple functions, if a piece is takeable or not.
     def translateToIndex(self, square): # converts traditional chess board squares; A1, B1, etc. to the correct index on the bitboard
@@ -52,17 +60,50 @@ class Chess(): # chess class
         board -= int(str(board)[new]) * 10**(143-new)
         board += piece * 10**(143-new)
         return board
-    def applyMove(self, prev, new):
+    def applyMoveNoTick(self, prev, new):
         self.mainBoard = self.updateBoard(self.mainBoard, prev, new)
         self.whiteBoard = self.updateBoard(self.whiteBoard, prev, new)
         self.blackBoard = self.updateBoard(self.blackBoard, prev, new)
-        if str(self.mainBoard)[self.translateToIndex(new)] == "2":
-            if prev[1] == "2" and new[1] == "4":
-                self.newEnPassant = self.translateToIndex(new) - 12
-            elif prev[1] == "7" and new[1] == "5":
-                self.newEnPassant = self.translateToIndex(new) + 12
-        self.swapPlayer()
-            
+    def applyMove(self, prev, new):
+        # all if/elifs cover castling, as it has to move two pieces.
+        if prev == "E1" and new == "G1" and str(self.mainBoard)[self.translateToIndex(prev)] == "7":
+            self.whiteCastleAny = False
+            self.applyMoveNoTick(prev, new)
+            self.applyMove(self.translateToSquare(self.translateToIndex(prev)+3), self.translateToSquare(self.translateToIndex(new)-1))
+        elif prev == "E1" and new == "C1" and str(self.mainBoard)[self.translateToIndex(prev)] == "7":
+            self.whiteCastleAny = False
+            self.applyMoveNoTick(prev, new)
+            self.applyMove(self.translateToSquare(self.translateToIndex(prev)-4), self.translateToSquare(self.translateToIndex(new)+1))
+        elif prev == "E8" and new == "G8" and str(self.mainBoard)[self.translateToIndex(prev)] == "7":
+            self.blackCastleAny = False
+            self.applyMoveNoTick(prev, new)
+            self.applyMove(self.translateToSquare(self.translateToIndex(prev)+3), self.translateToSquare(self.translateToIndex(new)-1))
+        elif prev == "E8" and new == "C8" and str(self.mainBoard)[self.translateToIndex(prev)] == "7":
+            self.blackCastleAny = False
+            self.applyMoveNoTick(prev, new)
+            self.applyMove(self.translateToSquare(self.translateToIndex(prev)-4), self.translateToSquare(self.translateToIndex(new)+1))
+        else:
+            self.mainBoard = self.updateBoard(self.mainBoard, prev, new)
+            self.whiteBoard = self.updateBoard(self.whiteBoard, prev, new)
+            self.blackBoard = self.updateBoard(self.blackBoard, prev, new)
+            if str(self.mainBoard)[self.translateToIndex("E1")] != "7":
+                self.whiteCastleAny = False
+            if str(self.mainBoard)[self.translateToIndex("E8")] != "7":
+                self.blackCastleAny = False
+            if str(self.mainBoard)[self.translateToIndex("A1")] != "3":
+                self.whiteCastleLeft = False
+            if str(self.mainBoard)[self.translateToIndex("H1")] != "3":
+                self.whiteCastleRight = False
+            if str(self.mainBoard)[self.translateToIndex("A8")] != "3":
+                self.blackCastleLeft = False
+            if str(self.mainBoard)[self.translateToIndex("H8")] != "3":
+                self.blackCastleRight = False
+            if str(self.mainBoard)[self.translateToIndex(new)] == "2":
+                if prev[1] == "2" and new[1] == "4":
+                    self.newEnPassant = self.translateToIndex(new) - 12
+                elif prev[1] == "7" and new[1] == "5":
+                    self.newEnPassant = self.translateToIndex(new) + 12
+            self.swapPlayer()          
     def testMove(self, prev, new):
         self.madeTest = True
         self.mainBoardTest = self.updateBoard(self.mainBoard, prev, new)
@@ -72,7 +113,7 @@ class Chess(): # chess class
         pieceIndex = self.translateToIndex(location)
         piece = pieces[int(str(self.mainBoard)[pieceIndex])]
         vectorSet = pieceVectors[piece]
-        self.moveSet = []
+        moveSet = []
         if piece in ["knight", "king"]: # first checks pieces that have a set values of moves that doesn't vary on position
             for vector in vectorSet:
                 if vector == 1:
@@ -82,12 +123,34 @@ class Chess(): # chess class
                         if str(self.whiteBoard)[pieceIndex + vector] != "1":
                             self.visionBoard()
                             if (int(str(self.blackVision)[pieceIndex + vector]) == 0 and piece == "king") or piece == "knight":
-                                self.moveSet.append(vector)
+                                moveSet.append(vector)
                     else:
                         if str(self.blackBoard)[pieceIndex + vector] != "1":
                             self.visionBoard()
-                            if (int(str(self.whiteVision[pieceIndex + vector])) == 0 and piece == "king") or piece == "knight":
-                                self.moveSet.append(vector)
+                            if (int(str(self.whiteVision)[pieceIndex + vector]) == 0 and piece == "king") or piece == "knight":
+                                moveSet.append(vector)
+        if piece == "king": # covers castling
+            self.visionBoard()
+            if self.currentPlayer:
+                if not self.whiteChecked:
+                    if self.whiteCastleRight:
+                        if -2 in self.legalMoves("H1"):
+                            if str(self.blackVision)[self.translateToIndex("F1"):self.translateToIndex("H1")] == "00":
+                                moveSet.append(2)
+                    if self.whiteCastleLeft:
+                        if 3 in self.legalMoves("A1"):
+                            if str(self.blackVision)[self.translateToIndex("B1"):self.translateToIndex("E1")] == "000":
+                                moveSet.append(-2)
+            else:
+                if not self.blackChecked:
+                    if self.blackCastleRight:
+                        if -2 in self.legalMoves("H8"):
+                            if str(self.whiteVision)[self.translateToIndex("F8"):self.translateToIndex("H8")] == "00":
+                                moveSet.append(2)
+                    if self.blackCastleLeft:
+                        if 3 in self.legalMoves("A8"):
+                            if str(self.whiteVision)[self.translateToIndex("B8"):self.translateToIndex("E8")] == "000":
+                                moveSet.append(-2)
         if piece in ["rook", "bishop", "queen"]: # now checks pieces that go across diagonals, ranks and files.
             if piece == "queen":
                 top = 8
@@ -101,17 +164,17 @@ class Chess(): # chess class
                     if str(self.mainBoard)[pieceIndex + steppedVector] != "9":
                         if self.currentPlayer:
                             if str(self.whiteBoard)[pieceIndex + steppedVector] == "0":
-                                self.moveSet.append(steppedVector)
+                                moveSet.append(steppedVector)
                             else:
                                 if str(self.whiteBoard)[pieceIndex + steppedVector] != "1":
-                                    self.moveSet.append(steppedVector)
+                                    moveSet.append(steppedVector)
                                 complete = True
                         else:
                             if str(self.blackBoard)[pieceIndex + steppedVector] == "0":
-                                self.moveSet.append(steppedVector)
+                                moveSet.append(steppedVector)
                             else:
                                 if str(self.blackBoard)[pieceIndex + steppedVector] != "1":
-                                    self.moveSet.append(steppedVector)
+                                    moveSet.append(steppedVector)
                                 complete = True
                         step += 1
                     else:
@@ -133,24 +196,24 @@ class Chess(): # chess class
                     if str(self.mainBoard)[pieceIndex + vector] != "9":
                         if self.currentPlayer:
                             if str(self.whiteBoard)[pieceIndex + vector] == "0":
-                                self.moveSet.append(vector)
+                                moveSet.append(vector)
                             else:
                                 blocked = True
                         else:
                             if str(self.blackBoard)[pieceIndex + vector] == "0":
-                                self.moveSet.append(vector)
+                                moveSet.append(vector)
                             else:
                                 blocked = True
             for vector in captureSet:
                 if str(self.mainBoard)[pieceIndex + vector] != "9":
                     if self.currentPlayer:
                         if str(self.whiteBoard)[pieceIndex + vector] not in ["0","1"] or pieceIndex + vector == self.enPassant:
-                            self.moveSet.append(vector)
+                            moveSet.append(vector)
                     else:
                         if str(self.blackBoard)[pieceIndex + vector] not in ["0","1"] or pieceIndex + vector == self.enPassant:
-                            self.moveSet.append(vector)
+                            moveSet.append(vector)
         removeList = []
-        for move in self.moveSet:
+        for move in moveSet:
             try:
                 self.testMove(location, self.translateToSquare(self.translateToIndex(location) + move))
                 self.visionBoard()
@@ -164,8 +227,8 @@ class Chess(): # chess class
             except ValueError:
                 continue
         for move in removeList:
-            self.moveSet.remove(move)
-        return self.moveSet
+            moveSet.remove(move)
+        return moveSet
     def visionMoves(self, location, board, test): # essentially the same as legalMoves but altered to show the full range of each piece, showing which pieces are protected, and allowing pins to function.
         piece = pieces[int(str(board)[location])]
         vectorSet = pieceVectors[piece]
@@ -279,10 +342,16 @@ class Chess(): # chess class
             index = str(self.whiteBoardTest).index("7")
             if str(self.whiteVisionTest)[index] != "0":
                 self.blackCheckedTest = True
-    def tick(self):
-        self.enPassant = self.newEnPassant
+    def tick(self): # updates variables for each player
+        self.enPassant = self.newEnPassant # makes sure the en passant is valid for one turn, and only for the correct player.
         self.newEnPassant = 0
-    def swapPlayer(self):
+        if not self.blackCastleAny: # gets set to False if king moves, therefore invalidating all castling
+            self.blackCastleLeft = False
+            self.blackCastleRight = False
+        if not self.whiteCastleAny:
+            self.whiteCastleLeft = False
+            self.whiteCastleRight = False
+    def swapPlayer(self): # self explanatory
         self.currentPlayer = not self.currentPlayer
         self.tick()
 
