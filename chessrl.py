@@ -36,6 +36,7 @@ class Chess(): # chess class
         self.whiteChecked = False
         self.blackChecked = False
         self.madeTest = False 
+        self.promotionInput = ""
         # each player's pieces are mapped on their own bitboard, so the legal moves can understand, without multiple functions, if a piece is takeable or not.
     def translateToIndex(self, square): # converts traditional chess board squares; A1, B1, etc. to the correct index on the bitboard
         self._letterIndex = "ABCDEFGH".index(square[0])
@@ -53,12 +54,21 @@ class Chess(): # chess class
             print(temp[(12-i)*12:(12-i)*12+12])
     def updateBoard(self, board, prev, new):
         global piece
+        oldprev = prev
+        oldnew = new
         prev = self.translateToIndex(prev)
         new = self.translateToIndex(new)
         piece = int(str(board)[prev])
+        if self.promotionInput == "":
+            if oldnew[1] in ["1","8"] and piece == 2:
+                self.promotionInput = int(input("3 - Rook, 4 - Knight, 5 - Bishop, 6 - Queen"))
         board -= piece * 10**(143-prev)
         board -= int(str(board)[new]) * 10**(143-new)
         board += piece * 10**(143-new)
+        if self.promotionInput != "":
+            board -= self.promotionInput * 10**(143-prev)
+            board -= int(str(board)[new]) * 10**(143-new)
+            board += self.promotionInput * 10**(143-new)
         return board
     def applyMoveNoTick(self, prev, new):
         self.mainBoard = self.updateBoard(self.mainBoard, prev, new)
@@ -345,6 +355,7 @@ class Chess(): # chess class
     def tick(self): # updates variables for each player
         self.enPassant = self.newEnPassant # makes sure the en passant is valid for one turn, and only for the correct player.
         self.newEnPassant = 0
+        self.promotionInput = ""
         if not self.blackCastleAny: # gets set to False if king moves, therefore invalidating all castling
             self.blackCastleLeft = False
             self.blackCastleRight = False
@@ -356,3 +367,5 @@ class Chess(): # chess class
         self.tick()
 
 Game = Chess()
+Game.applyMove("A2","A8")
+Game.printBoard(Game.mainBoard)
